@@ -2,30 +2,34 @@ import { useEffect, useState } from 'react';
 import { Text, View, Pressable } from 'react-native';
 import Header from './Header';
 import Footer from './Footer';
-import { NBR_OF_DICES, NBR_OF_THROWS, MAX_SPOT, MIN_SPOT, BONUS_POINTS_LIMIT, BONUS_POINTS } from '../constants/Game';
+import { NBR_OF_DICES, NBR_OF_THROWS, MAX_SPOT, MIN_SPOT, BONUS_POINTS_LIMIT, BONUS_POINTS, SCOREBOARD_KEY } from '../constants/Game';
 import styles from '../styles/style';
 import { Container, Row, Col } from 'react-native-flex-grid';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+
 
 let board = []
 
 export default Gameboard = ({ navigation, route }) => {
     
     const [playerName, setPlayerName] = useState('');
-    const [nbrOfThrowsLeft, setNbrOfThrowsLeft] = useState(NBR_OF_THROWS)
+    const [nbrOfThrowsLeft, setNbrOfThrowsLeft] = useState(NBR_OF_THROWS);
     const [status, setStatus] = useState('Throw dices');
     const [gameEndStatus, setGameEndStatus] = useState(false);
     // Mitkä nopat ovat valittuna
     const [selectedDices, setSelectedDices] = useState(new Array(NBR_OF_DICES).fill(false));
     // Noppien silmäluvut
     const [diceSpots, setDiceSpots] = useState(new Array(NBR_OF_DICES).fill(0));
-    // Onko silmäluulle valittu pisteet?
+    // Onko silmäluvulle valittu pisteet?
     const [selectedDicePoints, setSelectedDicePoints] = useState(new Array(MAX_SPOT).fill(false));
     // Kerätyt pisteet
     const [dicePointsTotal, setDicePointsTotal] = useState(new Array(MAX_SPOT).fill(0));
     // Tulostaulun pisteet
         const [scores, setScores] = useState([]);
+    // Kokonaispisteet
+    const [totalPoints, setTotalPoints] = useState(0);
 
     useEffect(() => {
         if (playerName === '' && route.params?.player) {
@@ -77,7 +81,7 @@ export default Gameboard = ({ navigation, route }) => {
                     onPress={() => selectDicePoints(diceButton)}
                     >
                     <MaterialCommunityIcons
-                        name={'numeric-' + (diceButton + 1) + '-circle'}
+                        name={'numeric-' + (diceButton + 1) + '-box'}
                         key={'buttonsRow' + diceButton}
                         size={35}
                         color={getDicePointsColor(diceButton)}
@@ -90,36 +94,42 @@ export default Gameboard = ({ navigation, route }) => {
 
     const selectDicePoints = (i) => {
         if (nbrOfThrowsLeft === 0) {
-
-        
-        let selectedPoints = [...selectedDicePoints];
-        let points = [...dicePointsTotal];
-        if (!selectedPoints[i]) {
-            selectedPoints[i] = true;
-            let nbrOfDices = diceSpots.reduce((total, x) => (x === (i + 1) ? total + 1: total), 0);
-            points[i] = nbrOfDices * (i + 1);
-        }
-        else {
-            setStatus('You already selected points for ' + (i + 1));
+            let selectedPoints = [...selectedDicePoints];
+            let points = [...dicePointsTotal];
+            if (!selectedPoints[i]) {
+                selectedPoints[i] = true;
+                let nbrOfDices = diceSpots.reduce((total, x) => (x === (i + 1) ? total + 1 : total), 0);
+                points[i] = nbrOfDices * (i + 1);
+            }
+            else {
+                setStatus('You already selected points for ' + (i + 1));
+                return points[i];
+            }
+            setDicePointsTotal(points);
+            setSelectedDicePoints(selectedPoints);
+            getTotalPoints(points)
             return points[i];
-        }
-        setDicePointsTotal(points);
-        setSelectedDicePoints(selectedPoints);
-        return points[i];
-        }
+            }
         else {
             setStatus('Throw ' + NBR_OF_THROWS + ' times before setting points.')
         }
     }
+
+    // pvm ja aika
+    let date = new Date()
+    let stringDate = date.toDateString()
+    let stringTime = date.toTimeString()
+    let substringedDate = stringDate.substring(4);
+    let substringedTime = stringTime.substring(0, 5)
 
     const savePlayerPoints = async() => {
         const newKey = scores.length + 1;
         const playerPoints = {
             key: newKey,
             name: playerName,
-            date: 'päivämäärä',
-            time: 'aika',
-            points: 0       //yhteispisteet
+            date: substringedDate,
+            time: substringedTime,
+            points: totalPoints
         }
         try {
             const newScore = [...scores, playerPoints];
@@ -183,26 +193,50 @@ export default Gameboard = ({ navigation, route }) => {
     }
 
     function getDiceColor(i) {
-        return selectedDices[i] ? 'black' : 'steelblue'
+        return selectedDices[i] ? 'black' : 'turquoise'
     }
 
     function getDicePointsColor(i) {
-        return selectedDicePoints[i] && !gameEndStatus ? 'black' : 'steelblue'
+        return selectedDicePoints[i] && !gameEndStatus ? 'black' : 'turquoise'
+    }
+
+    const checkBonusPoints = () => {
+        if (board.every((val, i ,arr) => val === arr[0] && nbrOfThrowsLeft === 0)) {
+            setStatus('Points selected, throw again');
+            setSelectedDices(new Array(NBR_OF_DICES).fill(false));
+        }
+        else if (nbrOfThrowsLeft === 0) {
+            setStatus('Select points');
+            setSelectedDices(new Array(NBR_OF_DICES).fill(false));
+        }
+        else if (nbrOfThrowsLeft === 0 && dicePointsTotal[i]) {
+            setStatus('Game over')
+            setSelectedDices(new Array(NBR_OF_DICES).fill(false));
+        }
+        else {
+            setStatus('Keep on throwing')
+        }
+    }
+
+    const getTotalPoints = (points) => {
+        setTotalPoints(points[0]+points[1]+points[2]+points[3]+points[4]+points[5])
     }
 
     return(
         <>
             <Header />
-            <View>
+            <View style={styles.gameboard}>
                 <Container fluid>
                     <Row>{dicesRow}</Row>
                 </Container>
-                <Text>Throws left: {nbrOfThrowsLeft}</Text>
-                <Text>{status}</Text>
+                <Text style={styles.gameboardText}>Throws left: {nbrOfThrowsLeft}</Text>
+                <Text style={styles.gameboardText}>{status}</Text>
                 <Pressable
-                    onPress={()=>throwDices()}>
-                    <Text>THROW DICES</Text>
+                    onPress={()=> throwDices()} style={styles.button}>
+                    <Text style={styles.buttonText}>THROW DICES</Text>
                 </Pressable>
+                <Text style={styles.gameboardText}>Total: {totalPoints}</Text>
+                <Text style={styles.gameboardText}>You are {63 - totalPoints} points away from bonus</Text>
                 <Container fluid>
                     <Row>{pointsRow}</Row>
                 </Container>
@@ -210,10 +244,10 @@ export default Gameboard = ({ navigation, route }) => {
                     <Row>{pointsToSelectRow}</Row>
                 </Container>
                 <Pressable
-                onPress={() => savePlayerPoints}>
-                    <Text>SAVE POINTS</Text>
+                 onPress= {() => savePlayerPoints()}  style={styles.button}>
+                    <Text style={styles.buttonText}>SAVE POINTS</Text>
                 </Pressable>
-                <Text>Player: {playerName}</Text>
+                <Text style={styles.player}>Player: {playerName}</Text>
             </View>
             <Footer />
         </>

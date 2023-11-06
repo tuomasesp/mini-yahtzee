@@ -4,15 +4,27 @@ import Scoreboard from './components/Scoreboard';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useFonts } from 'expo-font';
 
 const Tab = createBottomTabNavigator();
 
 export default function App() {
+
+  const [loaded] = useFonts({
+    RobotoMono: require('./assets/fonts/RobotoMono-Regular.ttf'),
+    Lobster: require('./assets/fonts/Lobster-Regular.ttf'),
+  });
+  if (!loaded) {
+    return null;
+  }
+  
   return (
+    
+    
     <NavigationContainer>
       <Tab.Navigator
         // initialRouteName="Home"
-        sceneContainerStyle={{backgrounfColor: 'transparent'}}
+        sceneContainerStyle={{backgroundColor: 'paleturquoise'}}
         screenOptions={({ route }) => ({
           tabBarIcon: ({focused, color, size}) => {
             let iconName;
@@ -46,5 +58,6 @@ export default function App() {
         <Tab.Screen name="Scoreboard" component={Scoreboard} />
       </Tab.Navigator>
     </NavigationContainer>
+    
   );
 }
